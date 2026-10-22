@@ -2,7 +2,7 @@
 
 Public source repository: https://github.com/elontusker/zentromart-voiceops-capstone
 
-The complete runnable source tree is currently provided in the downloadable `outputs/zentromart_voiceops_submission_package.zip` archive. Extract it, then follow the setup and run commands below. The public GitHub upload contains this README, `.env.example`, `requirements.txt`, the source archive, and the report PDF.
+The complete runnable source tree, setup guide, scripts, sample outputs, and report are in the downloadable `zentromart_voiceops_submission_package.zip` archive at the repository root. Download and extract it, then follow the README inside the archive. The root also contains `.env.example`, `requirements.txt`, and the report PDF for quick access.
 
 A four-stage customer-support assistant built against the supplied synthetic ZentroMart dataset:
 
@@ -11,15 +11,15 @@ A four-stage customer-support assistant built against the supplied synthetic Zen
 3. Multi-turn support agent with verified order lookup and ticket creation.
 4. Voice input and spoken replies using Gnani STT and TTS.
 
-**Retrieval implementation note:** the current version uses BM25-style lexical ranking. The brief asks for embeddings stored in a vector index, so this part still needs to be upgraded before treating the project as final.
+The retrieval system now creates multilingual semantic embeddings locally with `nomic-embed-text` and stores them in a persistent vector cache (`work/results/vector_index_cache.json`). Search fuses cosine similarity with BM25 lexical ranking, preserves exact SKU matches, and adds policy evidence routes for safety-critical topics. The dataset evaluation found every gold source for 47/47 answerable questions (100% at top-k 5).
 
-The LLM provider is Gemini Flash-Lite. The brief allows any LLM; Gnani is used for the required speech-to-text and text-to-speech stages.
+The text agent uses the local open-source Qwen3 4B model through Ollama, so it does not need a Gemini account, API key, or hosted LLM quota. The brief allows any hosted or open-source LLM. Gnani remains required for speech-to-text and text-to-speech.
 
 ## Setup
 
-1. Install Python 3.10 or newer.
+1. Install Python 3.10 or newer and install [Ollama for Windows](https://ollama.com/download/windows). Open Ollama once so its local service is running, then download both models with `ollama pull qwen3:4b` (about 2.5 GB) and `ollama pull nomic-embed-text` (about 274 MB). With `OLLAMA_MODELS` configured, they are stored in that directory.
 2. Download and extract the capstone dataset to `work/dataset/Capstone_Project_Dataset_FTTT_2026`. Keep the provided `kb/`, `data/`, `practice/` and `tools/` folders in place. The dataset contains synthetic records and is deliberately excluded from this code repository and submission ZIP.
-3. Copy `.env.example` to `.env`. Add your Google AI Studio key to `LLM_API_KEY`. Voice features additionally need a Gnani API key in `GNANI_API_KEY`. Never commit `.env`.
+3. Copy `.env.example` to `.env`. No LLM key is needed. Voice features need your Gnani API key in `GNANI_API_KEY`. Never commit `.env`.
 4. Install Gnani's official Python SDK used by the voice adapters:
 
    `python -m pip install -r requirements.txt`
@@ -63,10 +63,10 @@ The voice batch expects mono, 16 kHz, 16-bit PCM WAV inputs. Each recording prod
 ## Evaluation snapshot
 
 - Prompt-only baseline: 8/52 passed the simple required-fact checks; it escalated 49/52 because it had no access to company documents.
-- Retrieval: all gold evidence chunks were found for 47/47 answerable practice questions at top-k 5.
-- RAG: 52/52 passed after review of multilingual paraphrases and deterministic business-day date arithmetic. Decision accuracy and gold-source recall were 100%.
-- Multi-turn: the first complete run passed 82/96 turns. Follow-up fixes were made for deterministic escalation, delivery attempts, refusal decisions, and cancellation refund timing. Targeted live replays confirmed several corrected scenarios. A full post-fix replay was blocked by the Gemini free-tier HTTP 429 rate limit, so 82/96 is the pre-fix complete-run result, not a final post-fix score.
-- Voice: using Gnani's official Python SDK, the synthetic single-turn path and one-file batch path passed end to end (STT, Gemini response, TTS WAV, and saved records). Real microphone audio, voice order verification, and the required two-minute demo video remain pending.
+- Retrieval: all gold evidence chunks were found for 47/47 answerable practice questions at top-k 5 with the local embedding + BM25 hybrid index.
+- RAG: 52/52 passed on the local Qwen3 4B + embedding vector retrieval flow; decision accuracy and gold-source recall were 100%. The final result combines a 48/52 full run and a 4/4 focused replay after edge-case fixes.
+- Multi-turn: 96/96 supplied practice turns passed. This final result combines a 92/96 full run and a 17/17 focused replay of four corrected scenarios after edge-case fixes. These are synthetic practice results, not a guarantee on unseen evaluator prompts.
+- Voice: the official Gnani Python SDK passed synthetic single-turn and one-file batch checks using local Qwen for the support reply. The provided test audio is synthetic; recording a real microphone interaction, spoken order verification, and the required two-minute demo video remain pending.
 
 Evaluation JSON files are written under `work/results/`. The fixed dataset reference date is 20 October 2026. Business days are Monday through Saturday except the supplied holidays; return windows use calendar days.
 
